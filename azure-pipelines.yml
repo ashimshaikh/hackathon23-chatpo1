@@ -1,0 +1,65 @@
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage:
+  displayName: Deploy Function App
+  variables:
+  - name: functionAppName
+    value: 'ChatPO2' #Name of your Bot
+  - name: resourceGroupName
+    value: 'Hackathon2023RG' #Name of the resource group you are using
+  - name: azureSubscriptionId
+    value: '853128b3-1335-44ab-bc43-84191154b95d' #Subscription ID (from the Azure Portal)
+  - name: azureSubscriptionEndPoint
+    value: 'ashimshaikh' #This is the Service Connection name - you can read about service connections in Azure
+    
+  jobs:
+    - job:
+      steps:
+      - task: AzureResourceManagerTemplateDeployment@3
+        displayName: Deploy function app and associated resources
+        inputs:
+          deploymentScope: 'Resource Group'
+          azureResourceManagerConnection: ${{variables.azureSubscriptionEndPoint}}
+          subscriptionId: ${{variables.azureSubscriptionId}}
+          action: 'Create Or Update Resource Group'
+          resourceGroupName: ${{variables.resourceGroupName}}
+          location: 'North Europe'
+          templateLocation: 'Linked artifact'
+          csmFile: '$(System.DefaultWorkingDirectory)/infrastructure/functionapptemplate.json'
+          overrideParameters: '-functionAppName ${{variables.functionAppName}}'
+          deploymentMode: 'Incremental'
+
+      - task: DotNetCoreCLI@2
+        inputs:
+          command: 'publish'
+          publishWebProjects: false
+          projects: '$(System.DefaultWorkingDirectory)/src/BotFunction/BotFunction/BotFunction.csproj' #Ensure that this is point to your Bot's csproj file.
+          arguments: '--output $(Build.ArtifactStagingDirectory)'
+          zipAfterPublish: true
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          ArtifactName: 'functionapplication'
+          publishLocation: 'Container'
+
+      - task: DownloadBuildArtifacts@0
+        inputs:
+          buildType: 'current'
+          downloadType: 'single'
+          artifactName: 'functionapplication'
+          downloadPath: '$(System.ArtifactsDirectory)'
+
+      - task: AzureFunctionApp@1
+        inputs:
+          azureSubscription: ${{variables.azureSubscriptionEndPoint}}
+          appType: 'functionApp'
+          appName: ${{variables.functionAppName}}
+          package: '$(System.ArtifactsDirectory)/functionapplication/*.zip'
+          deploymentMethod: 'auto'
