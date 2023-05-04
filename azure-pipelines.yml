@@ -16,7 +16,7 @@ stages:
   - name: azureSubscriptionId
     value: '853128b3-1335-44ab-bc43-84191154b95d' #Subscription ID (from the Azure Portal)
   - name: azureSubscriptionEndPoint
-    value: 'ashimshaikh' #This is the Service Connection name - you can read about service connections in Azure
+    value: 'Hackathon2023' #This is the Service Connection name - you can read about service connections in Azure
     
   jobs:
     - job:
